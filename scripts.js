@@ -1,5 +1,11 @@
 /* TODO :
 
+- Corriger bug sauvegarde position
+
+- Permettre save_note() hors d'une réponse à un événement
+
+=========
+
 - Limiter les mouvements des notes pour ne pas les laisser sortir de la fenêtre
 
 - Personnaliser la demande de confirmation avant suppression
@@ -24,8 +30,15 @@ window.onmousemove = function(e) {
     notes_list.forEach(function(the_note){
         
         if (the_note.note_moving) {
-            the_note.style.top = e.clientY - the_note.mouse_offset_Y + "px";
-            the_note.style.left = e.clientX - the_note.mouse_offset_X + "px";
+            
+            the_note.position_y = e.clientY - the_note.mouse_offset_Y;
+            the_note.position_x = e.clientX - the_note.mouse_offset_X;
+            
+            the_note.style.top = the_note.position_y + "px";
+            the_note.style.left = the_note.position_x + "px";
+            
+            // ICI IL FAUDRAIT APPELER save_note()
+            
         }
         
     });
@@ -56,7 +69,8 @@ function auto_resize(e) {
 ///// INSERTION DE NOUVELLES NOTES /////
 
 
-function create_note(x = 0 , y = 0) {
+function create_note(x = 0 , y = 0 , content = "" , id = 0) {
+    
     
     /* À METTRE À JOUR !
         
@@ -80,19 +94,24 @@ function create_note(x = 0 , y = 0) {
     
     new_note.classList.add("note");
     
+    new_note.position_y = y;
+    new_note.position_x = x;
+    
     new_note.style.top = y + "px";
     new_note.style.left = x + "px";
     
-    //new_note.innerHTML = '<div class = "handle"><div class = "close_cross">&times;</div></div><textarea></textarea>';
-    
-    new_note.innerHTML = '<div class = "handle"><div class = "close_cross">&times;</div></div><form action="php_scripts/create_note.php" method="post"><textarea name="content"></textarea><input type="submit"></form>';
+    new_note.innerHTML = '<div class = "handle"><div class = "close_cross">&times;</div></div><textarea></textarea>';
+
+    new_note.note_id = id;
     
     // Maintenant que le contenu de la note est en place, on peut créer des références directes à sa poignée et à son champ texte (sous forme de propriétés personnalisées de la nouvelle note)
     
     new_note.handle = new_note.querySelector(".handle");
     new_note.field = new_note.querySelector("textarea");
     
-    new_note.field.focus();
+    new_note.field.value = content;
+    
+    //new_note.field.focus();
     
     new_note.cross = new_note.querySelector(".close_cross");
     
@@ -125,6 +144,9 @@ function create_note(x = 0 , y = 0) {
         
     }
     
+    new_note.field.onblur = save_note;
+    //new_note.field.onmouseout = save_note;
+    
     // On ajoute la nouvelle note à la liste de toutes les notes
     notes_list.push(new_note);
     
@@ -138,3 +160,60 @@ document.ondblclick = function(e) {
   create_note(e.clientX , e.clientY); 
 
 }
+
+
+
+///// GESTION DE LA SAUVEGARDE EN BDD /////
+
+function save_note(e) { // e = l'événement auquel cette fonction répondra
+    
+    // ! \ A CORRIGER : Rentre cette fonction utilisable hors d'un événement
+    
+    var field_to_save = e.target;
+    var note_to_save = field_to_save.parentElement;
+    var id_to_check = note_to_save.note_id;
+    // Ici : on utilise la propriété .parentElement de notre champ, pour remonter à son élément parent, qui est la note elle-même. Cette note possède une propriété (personnalisée) note_id
+    
+    if (field_to_save.value != "") { // Si le champ n'est pas vide
+        
+        $.ajax({
+            method:"POST",
+            url:"php_scripts/save_note.php",
+            data:{
+                content:field_to_save.value,
+                id:id_to_check,
+                position_x:note_to_save.position_x,
+                position_y:note_to_save.position_y
+            },
+            success:function(data){ // On doit mettre à jour l'id de la note maintenant qu'elle est sauvegardée (si elle n'existait pas encore)
+                
+                if (data != "") {
+                    note_to_save.note_id = data;
+                }
+                
+            }
+        });
+        
+    }
+    
+}
+
+
+
+///// RECUPERATION INITIALE DES NOTES EN BDD /////
+
+$.ajax({
+     method:"POST",
+     url:"php_scripts/get_notes.php",
+     dataType:"json", // Préciser sous quelle forme on attend les données
+    
+     success:function(data){ // Ici le paramètre data représentera l'information récupérée auprès du script avec lequel on communique
+      
+         // data représente la liste, au format JSON (Objets JS), des différentes lignes disponibles dans la table notes
+        
+         data.forEach(function(row){ // On passe en revue chaque ligne, qui représente une note. On peut récupérer depuis une ligne les contenus de ses différentes colonnes en y accédant comme des propriétés.
+             create_note(row.position_x , row.position_y , row.content , row.id);
+         });
+        
+     }
+});
