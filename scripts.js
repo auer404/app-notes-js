@@ -1,8 +1,8 @@
+// BUG SAUVEGARDE COORDONNÉES : RÉGLÉ - Faute d'inattention dans une requête de save_note.php
+
 /* TODO :
 
-- Corriger bug sauvegarde position
-
-- Permettre save_note() hors d'une réponse à un événement
+- Gérer suppression (côté BDD)
 
 =========
 
@@ -19,13 +19,10 @@
 // Par défaut : cette liste est vide
 var notes_list = new Array();
 
+
 ////// GESTION DRAG N DROP //////
 
 window.onmousemove = function(e) {
-    
-    // MODIF PHASE 2 : Il faudra pouvoir tester le mouvement de chaque note existante
-    
-    // Transformer le code ci-dessous (et ajouter ce qu'il faut autour : forEach) pour que ces instructions soient appliquées sur CHAQUE note (donc sur chaque élément du tableau notes_list) au lieu de se baser sur une variable note qui n'existe plus
     
     notes_list.forEach(function(the_note){
         
@@ -37,8 +34,9 @@ window.onmousemove = function(e) {
             the_note.style.top = the_note.position_y + "px";
             the_note.style.left = the_note.position_x + "px";
             
-            // ICI IL FAUDRAIT APPELER save_note()
-            
+            // Précédemment envisagé : sauvegarde de la note ici.
+            // ! \ PROBLÈME : 1 requête par mouvement de souris (donc trop fréquent)
+            // Solution : sauvegarde lors du relachement de la souris
         }
         
     });
@@ -46,11 +44,14 @@ window.onmousemove = function(e) {
 }
 
 window.onmouseup = function() {
-    // MODIF PHASE 2 : Toutes les propriétés note_moving peuvent repasser à false
-    
-    // Modif : même principe que pour le bloc précédent : il faut un forEach, qui permette d'atteindre la proriété note_moving de chaque élément du tableau notes_list
     
     notes_list.forEach(function(the_note){
+        
+        // Nouveau - nécessite modif fonction save_note()
+        if (the_note.note_moving) { // Cette note était en train d'être déplacée
+            save_note(the_note);
+        }
+        /////
         
         the_note.note_moving = false; 
         
@@ -67,7 +68,6 @@ function auto_resize(e) {
 
 
 ///// INSERTION DE NOUVELLES NOTES /////
-
 
 function create_note(x = 0 , y = 0 , content = "" , id = 0) {
     
@@ -111,7 +111,9 @@ function create_note(x = 0 , y = 0 , content = "" , id = 0) {
     
     new_note.field.value = content;
     
-    //new_note.field.focus();
+    if (id == 0) { // Cas d'une nouvelle note
+        new_note.field.focus();
+    }
     
     new_note.cross = new_note.querySelector(".close_cross");
     
@@ -133,7 +135,7 @@ function create_note(x = 0 , y = 0 , content = "" , id = 0) {
     
     new_note.cross.onclick = function(){
         
-        // Ce test se vérifie uniquement si le bouton "OK" d'une boîte de dialogue est cliqué - NOTE : On pourrait remplacer ceci par quelque chose d'un peu plus personnalisé
+        // Ce test se vérifie uniquement si le bouton "OK" d'une boîte de dialogue est cliqué
         if ( confirm("Supprimer cette note ?") ) {
         
             //document.body.removeChild(new_note);
@@ -145,7 +147,6 @@ function create_note(x = 0 , y = 0 , content = "" , id = 0) {
     }
     
     new_note.field.onblur = save_note;
-    //new_note.field.onmouseout = save_note;
     
     // On ajoute la nouvelle note à la liste de toutes les notes
     notes_list.push(new_note);
@@ -162,20 +163,25 @@ document.ondblclick = function(e) {
 }
 
 
-
 ///// GESTION DE LA SAUVEGARDE EN BDD /////
 
-function save_note(e) { // e = l'événement auquel cette fonction répondra
+function save_note(e) { // e = l'événement auquel cette fonction répondra OU la note concernée elle-même (la fonction peut être utilisée de 2 manières différentes)
+
+    // CORRECTION : Rendre cette fonction utilisable hors d'un événement
+    if (e.target) {
+        var field_to_save = e.target;
+        var note_to_save = field_to_save.parentElement;
+    } else {
+        var note_to_save = e;
+        var field_to_save = e.field;
+    }
+    ////
     
-    // ! \ A CORRIGER : Rentre cette fonction utilisable hors d'un événement
-    
-    var field_to_save = e.target;
-    var note_to_save = field_to_save.parentElement;
     var id_to_check = note_to_save.note_id;
-    // Ici : on utilise la propriété .parentElement de notre champ, pour remonter à son élément parent, qui est la note elle-même. Cette note possède une propriété (personnalisée) note_id
+
     
     if (field_to_save.value != "") { // Si le champ n'est pas vide
-        
+
         $.ajax({
             method:"POST",
             url:"php_scripts/save_note.php",
@@ -197,7 +203,6 @@ function save_note(e) { // e = l'événement auquel cette fonction répondra
     }
     
 }
-
 
 
 ///// RECUPERATION INITIALE DES NOTES EN BDD /////
