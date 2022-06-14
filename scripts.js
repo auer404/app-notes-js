@@ -83,7 +83,9 @@ function create_note(x = 0 , y = 0) {
     new_note.style.top = y + "px";
     new_note.style.left = x + "px";
     
-    new_note.innerHTML = '<div class = "handle"><div class = "close_cross">&times;</div></div><textarea></textarea>';
+    //new_note.innerHTML = '<div class = "handle"><div class = "close_cross">&times;</div></div><textarea></textarea>';
+    
+    new_note.innerHTML = '<div class = "handle"><div class = "close_cross">&times;</div></div><form action="php_scripts/create_note.php" method="post"><textarea name="content"></textarea><input type="submit"></form>';
     
     // Maintenant que le contenu de la note est en place, on peut créer des références directes à sa poignée et à son champ texte (sous forme de propriétés personnalisées de la nouvelle note)
     
