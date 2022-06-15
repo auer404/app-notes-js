@@ -12,7 +12,7 @@ $y = $_POST["position_y"];
 
 
 
-$DB_connection = new PDO("mysql:host=localhost;dbname=notes-js", "root" , "");
+$DB_connection = new PDO("mysql:host=localhost;dbname=notes-js", "root" , "root");
 
 // Si la note concernée possède un id différent de 0, c'est qu'elle existe déjà dans la table. Sinon, on peut l'y ajouter.
 
@@ -39,7 +39,7 @@ if ($id == 0) {
     
 } else {
     
-    $SQL_query = "UPDATE `notes` SET `content` = ? , `position_x` = ? , `position_x` = ? WHERE `id` = $id";
+    $SQL_query = "UPDATE `notes` SET `content` = ? , `position_x` = ? , `position_y` = ? WHERE `id` = $id";
 
     $preparation = $DB_connection->prepare($SQL_query);
 
